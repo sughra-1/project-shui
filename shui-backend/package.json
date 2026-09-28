@@ -1,0 +1,24 @@
+{
+  "name": "shui-backend",
+  "version": "1.0.0",
+  "description": "<!-- title: 'AWS NodeJS Example' description: 'This template demonstrates how to deploy a simple NodeJS function running on AWS Lambda using the Serverless Framework.' layout: Doc framework: v4 platform: AWS language: nodeJS priority: 1 authorLink: 'https://github.com/serverless' authorName: 'Serverless, Inc.' authorAvatar: 'https://avatars1.githubusercontent.com/u/13742415?s=200&v=4' -->",
+  "main": "handler.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1140.0",
+    "@aws-sdk/lib-dynamodb": "^3.1140.0",
+    "@middy/core": "^7.9.2",
+    "@middy/http-json-body-parser": "^7.9.2",
+    "bcryptjs": "^3.0.3",
+    "http-errors": "^2.0.1",
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^14.0.2",
+    "zod": "^4.6.5"
+  }
+}
