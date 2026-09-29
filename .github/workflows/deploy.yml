@@ -3,7 +3,7 @@ name: Deploy exam-shui to s3
 on:
     push:
       branches:
-        -main
+        - main
 permissions:
     id-token: write
     contents: read
@@ -11,6 +11,10 @@ permissions:
 jobs:
       deploy:
           runs-on: ubuntu-latest
+          defaults:
+            run:
+              working-directory: shui-frontend   # run all commands in the frontend folder
+
           steps:
               - name: Checkout repository
                 uses: actions/checkout@v4
@@ -18,7 +22,7 @@ jobs:
               - name: Setup Node.js
                 uses: actions/setup-node@v4
                 with:
-                node-version: 22
+                  node-version: 22
 
               - name: Install dependencies
                 run: npm ci
