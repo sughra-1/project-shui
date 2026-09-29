@@ -11,9 +11,7 @@ permissions:
 jobs:
       deploy:
           runs-on: ubuntu-latest
-          defaults:
-            run:
-              working-directory: shui-frontend   # run all commands in the frontend folder
+          
 
           steps:
               - name: Checkout repository
