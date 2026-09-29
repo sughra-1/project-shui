@@ -4,6 +4,8 @@ import LoginPage from "../pages/loginpage/LoginPage";
 import RegisterPage from "../pages/registerpage/RegisterPage";
 import NewMessagePage from "../pages/newmessagepage/NewMessagePage";
 import EditMessagePage from "../pages/editmessagepage/EditMessagePage";
+import UserPage from "../pages/userpage/UserPage";
+
 
 export const router = createBrowserRouter([
     {
@@ -25,5 +27,9 @@ export const router = createBrowserRouter([
     {
         path: "/message/edit/:id",
         element: <EditMessagePage />,
+    },
+    {
+        path: "/users/:username",
+        element: <UserPage />,
     }
 ]);

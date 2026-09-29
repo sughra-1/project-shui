@@ -10,7 +10,7 @@ export const handler = middy(async (event) => {
   const Items = await getMessages(username);
 
   // Only return the message fields, not the database keys
-  const messages = Items.map(({ id, username, text, createdAt }) => ({ id, username, text, createdAt }));
+  const messages = Items.map(({ id, username, text, createdAt, updatedAt }) => ({ id, username, text, createdAt, updatedAt }));
 
   return sendResponse(200, {
     success : true,

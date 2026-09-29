@@ -7,7 +7,7 @@ import { hashPassword } from '../utils/token.mjs';
 // Finds one user by username (returns undefined if not found)
 export const getUserByUsername = async (username) => {
     const { Item } = await db.send(new GetCommand({
-        TableName : 'shuiTable',
+        TableName : process.env.TABLE_NAME,
         Key : { PK : `USER#${username}`, SK : 'PROFILE' }
     }));
 
@@ -25,7 +25,7 @@ export const createUser = async (username, email, password) => {
 
     try {
         await db.send(new PutCommand({
-            TableName : 'shuiTable',
+            TableName : process.env.TABLE_NAME,
             Item : { 
                 PK : `USER#${user.username}`, 
                 SK : 'PROFILE', 

@@ -12,7 +12,7 @@ import createError from 'http-errors';
 export const getMessages = async (username) => {
     const params = username
     ? {
-            TableName : 'shuiTable',
+            TableName : process.env.TABLE_NAME,
             IndexName : 'GSI2',
             KeyConditionExpression : 'GSI2PK = :pk AND begins_with(GSI2SK, :sk)',
             ExpressionAttributeValues : {
@@ -21,7 +21,7 @@ export const getMessages = async (username) => {
         }
         :{
                 // Get all messages (GSI1)
-            TableName : 'shuiTable',
+            TableName : process.env.TABLE_NAME,
             IndexName : 'GSI1',
             KeyConditionExpression : 'GSI1PK = :pk',
             ExpressionAttributeValues : { ':pk' : 'MESSAGES' }
@@ -39,7 +39,7 @@ export const getMessages = async (username) => {
 
 export const getMessageById = async (id) => {
     const { Item }  = await db.send (new GetCommand({
-        TableName : 'shuiTable',
+        TableName : process.env.TABLE_NAME,
         Key : {
             PK : `MESSAGE#${id}`,
             SK : 'METADATA'
@@ -68,7 +68,7 @@ export const getMessageById = async (id) => {
         };
 
         await db.send(new PutCommand({
-            TableName : 'shuiTable',
+            TableName : process.env.TABLE_NAME,
             Item : {
                 PK : `MESSAGE#${message.id}`,         //get one message by id
                 SK : 'METADATA',
@@ -89,7 +89,7 @@ export const getMessageById = async (id) => {
 
 export const updateMessage = async (id, text) => {
     const { Attributes } = await db.send(new UpdateCommand({
-        TableName : 'shuiTable',
+        TableName : process.env.TABLE_NAME,
         Key : { 
             PK : `MESSAGE#${id}`, 
             SK : 'METADATA' 
@@ -110,7 +110,7 @@ export const updateMessage = async (id, text) => {
 // Deletes one message by its id
 export const deleteMessage = async (id) => {
     await db.send(new DeleteCommand({
-        TableName : 'shuiTable',
+        TableName : process.env.TABLE_NAME,
         Key : { 
             PK : `MESSAGE#${id}`, 
             SK : 'METADATA' 
