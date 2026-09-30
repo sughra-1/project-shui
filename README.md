@@ -1,743 +1,406 @@
-# Individuell examination – Shui
+# Exam-Shui – digital message board
 
-[Inspelad genomgång av examination](https://funet.sharepoint.com/:v:/s/FrontendutvecklareYH-Fe25/IQByp34iw5zLTr0lXs5mbj06AWBZael3GfRr6QTEyJx0HWw?e=Q6FVUk)
+Shui is a simple digital message board where users can read, publish, edit and delete messages.
 
-## Bakgrund
+The project builds on the existing Shui React starter project. I added a serverless backend on AWS (API Gateway, Lambda, DynamoDB), connected the frontend to it, added registration and login with JWT, and deployed the frontend to S3.
 
-Du har fått i uppdrag att vidareutveckla **Shui**, en enkel digital anslagstavla där användare kan publicera meddelanden.
+## Links
 
-Till skillnad från tidigare projekt kommer du **inte att börja från ett tomt projekt**.
+| | URL |
+|---|---|
+| **Deployed app (S3)** | http://project-shui-sughra.s3-website.eu-north-1.amazonaws.com |
+| **API base URL** | https://8ez7w55yl6.execute-api.eu-north-1.amazonaws.com|
 
-Du får istället tillgång till en befintlig React-applikation som innehåller projektets grundläggande struktur, komponenter och styling.
+## Tech stack
 
-Din uppgift är att:
+**Backend:** Node.js 24, Serverless Framework, AWS API Gateway (HTTP API), AWS Lambda, DynamoDB, Middy (middleware), Zod (validation), bcryptjs (password hashing), jsonwebtoken (JWT), uuid
 
-1. sätta dig in i den befintliga kodbasen
-2. bygga ett serverless API i AWS
-3. koppla frontend-applikationen till ditt API
-4. vidareutveckla den befintliga applikationen med efterfrågad funktionalitet
-5. driftsätta den färdiga applikationen på AWS
+**Frontend:** React (Vite), React Router, TanStack Query
 
-Målet är alltså inte bara att bygga ny funktionalitet, utan också att träna på att **förvalta och vidareutveckla befintlig kod**.
+**Deployment:** Backend with `serverless deploy`. Frontend is built with `npm run build` and deployed to S3 automatically by GitHub Actions on every push to `main`.
 
----
+## Architecture
 
-# Startprojekt
-
-Du kommer att få ett färdigt React-projekt för Shui.
-
-Projektet innehåller bland annat:
-
-* grundläggande projektstruktur
-* färdiga komponenter
-* grundläggande styling
-* layout för applikationen
-* exempeldata för meddelanden
-
-När du får projektet fungerar frontendens utseende, men den är **inte kopplad till någon backend**.
-
-Datan som visas är alltså inte persistent.
-
-Din uppgift är att förstå hur projektet är uppbyggt och sedan koppla det till det API som du själv bygger.
-
-> Du får ändra och vidareutveckla frontendens design, men ska utgå från den befintliga projektstrukturen och återanvända befintlig kod där det är lämpligt.
-
----
-
-# Applikationen
-
-Shui är en digital anslagstavla.
-
-En användare ska kunna:
-
-* se publicerade meddelanden
-* publicera ett nytt meddelande
-* redigera ett meddelande
-* ta bort ett meddelande
-
-Ett meddelande ska minst innehålla:
-
-```js
-{
-  id: String,
-  username: String,
-  text: String,
-  createdAt: String
-}
+```text
+React (S3)  →  API Gateway  →  Lambda  →  DynamoDB
 ```
 
-Exempel:
+---
+
+# API documentation
+
+All responses are JSON. Errors have this format:
+
+```json
+{ "success": false, "message": "Message not found." }
+```
+
+Protected endpoints need the JWT from login in the header:
+
+```text
+Authorization: Bearer <token>
+```
+
+## Endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | – | Register a user |
+| `POST` | `/api/auth/login` | – | Log in, returns a JWT |
+| `GET` | `/api/messages` | – | Get all messages |
+| `GET` | `/api/messages?username={username}` | – | Get all messages from one user |
+| `GET` | `/api/messages/{id}` | – | Get one message |
+| `POST` | `/api/messages` | logged In (JWT) |Create a message |
+| `PATCH` | `/api/messages/{id}` |  logged In + own message | Update a message |
+| `DELETE` | `/api/messages/{id}` |  logged In + own message | Delete a message |
+
+---
+
+## Register
+
+`POST /api/auth/register`
+
+**Request body**
 
 ```json
 {
-  "id": "01JABCD123",
-  "username": "jeppan6y",
-  "text": "Någon som vill spela padel ikväll?",
-  "createdAt": "2026-09-28T14:32:00.000Z"
+  "username": "sughra",
+  "email": "sughra@test.com",
+  "password": "123456"
 }
 ```
 
-`id` och `createdAt` ska genereras av backend.
+**Validation:** `username` required string · `email` valid email · `password` at least 6 characters
+
+**Response `201`**
+
+```json
+{ "success": true, "message": "User registered successfully!" }
+```
+
+**Errors:** `400` invalid body · `409` Username already exists
+
+The password is hashed with bcrypt before it is saved and is never stored in plain text.
 
 ---
 
-# Funktionella krav
+## Login
 
-## Hämta alla meddelanden
+`POST /api/auth/login`
 
-Det ska gå att hämta och visa samtliga meddelanden från databasen.
-
-Frontend-applikationen ska använda ditt API för att hämta datan.
-
-Exempel:
-
-```http
-GET /messages
-```
-
----
-
-## Hämta meddelanden från en användare
-
-API:t ska även kunna hämta samtliga meddelanden som publicerats av ett specifikt användarnamn.
-
-Du bestämmer själv hur endpointen utformas.
-
-Exempel:
-
-```http
-GET /messages?username=jeppan6y
-```
-
-eller:
-
-```http
-GET /users/jeppan6y/messages
-```
-
-Det viktiga är att filtreringen sker genom ditt API och din databaslösning.
-
-Du behöver på G-nivå **inte** skapa en separat sida i frontend för detta, men API:t ska stödja funktionaliteten.
-
----
-
-## Publicera meddelande
-
-Det ska gå att skapa ett nytt meddelande.
-
-Användaren ska ange:
-
-```text
-username
-text
-```
-
-Frontend skickar informationen till API:t.
-
-Exempel:
-
-```http
-POST /messages
-```
+**Request body**
 
 ```json
 {
-  "username": "jeppan6y",
-  "text": "Hello Shui!"
+  "username": "sughra",
+  "password": "123456"
 }
 ```
 
-Backend ansvarar för att skapa:
-
-```text
-id
-createdAt
-```
-
-och spara meddelandet i DynamoDB.
-
----
-
-## Redigera meddelande
-
-Det ska gå att redigera ett befintligt meddelande.
-
-Exempel:
-
-```http
-PUT /messages/{id}
-```
-
-Den uppdaterade informationen ska sparas i DynamoDB och ändringen ska visas i frontend.
-
----
-
-## Ta bort meddelande
-
-Det ska gå att ta bort ett befintligt meddelande.
-
-Exempel:
-
-```http
-DELETE /messages/{id}
-```
-
-Meddelandet ska tas bort från DynamoDB och därefter inte längre visas i frontend.
-
----
-
-# API
-
-Du bestämmer själv exakt hur ditt API struktureras.
-
-En möjlig struktur är:
-
-| Method   | Endpoint                        | Beskrivning                         |
-| -------- | ------------------------------- | ----------------------------------- |
-| `GET`    | `/messages`                     | Hämta alla meddelanden              |
-| `GET`    | `/messages?username={username}` | Hämta meddelanden från en användare |
-| `POST`   | `/messages`                     | Skapa ett meddelande                |
-| `PUT`    | `/messages/{id}`                | Uppdatera ett meddelande            |
-| `DELETE` | `/messages/{id}`                | Ta bort ett meddelande              |
-
-Du får använda en annan struktur så länge samtliga funktionella krav är uppfyllda.
-
----
-
-# Backend
-
-Backend ska byggas som en **serverless-applikation i AWS**.
-
-Följande tekniker ska användas:
-
-* Serverless Framework
-* API Gateway
-* AWS Lambda
-* DynamoDB
-* Node.js
-
-Serverless Framework ska användas för att deploya applikationen.
-
-AWS-infrastrukturen ska i så stor utsträckning som möjligt definieras i:
-
-```text
-serverless.yml
-```
-
----
-
-# DynamoDB
-
-Alla meddelanden ska lagras persistent i DynamoDB.
-
-Databasdesignen ska utgå från applikationens **Access Patterns**.
-
-Du behöver bland annat kunna lösa:
-
-```text
-AP1: Skapa ett meddelande
-
-AP2: Hämta alla meddelanden
-
-AP3: Hämta alla meddelanden från en specifik användare
-
-AP4: Hämta ett specifikt meddelande
-
-AP5: Uppdatera ett meddelande
-
-AP6: Ta bort ett meddelande
-```
-
-Fundera på vilka kombinationer av:
-
-```text
-Partition Key
-Sort Key
-```
-
-som gör det möjligt att lösa dessa frågor effektivt.
-
-Det är tillåtet och uppmuntrat att använda **single-table design** där det är lämpligt.
-
-Om din primära nyckelstruktur inte effektivt kan lösa samtliga Access Patterns kan du även använda exempelvis ett:
-
-```text
-Global Secondary Index (GSI)
-```
-
-Du ansvarar själv för att välja och motivera din nyckelstruktur.
-
-> Undvik att utgå från hur datan "ser ut". Börja istället med vilka frågor applikationen behöver kunna ställa till databasen.
-
----
-
-# DynamoDB-dokumentation
-
-I projektets README ska du kort dokumentera din databasdesign.
-
-Dokumentationen ska minst innehålla:
-
-## Access Patterns
-
-Exempel:
-
-```text
-Hämta alla meddelanden
-
-Hämta alla meddelanden från användare X
-
-Hämta ett meddelande via ID
-```
-
-## Key Design
-
-Beskriv hur dina viktigaste entities lagras.
-
-Exempel på format:
-
-| Entity  | PK    | SK    |
-| ------- | ----- | ----- |
-| Message | `...` | `...` |
-| User    | `...` | `...` |
-
-Om du använder ett GSI ska även dess nycklar dokumenteras.
-
-Du behöver inte skriva en lång rapport.
-
-Det viktiga är att det går att förstå **varför din DynamoDB-design ser ut som den gör**.
-
----
-
-# Validering
-
-Data från klienten ska valideras innan den sparas i databasen.
-
-API:t ska exempelvis kontrollera att:
-
-* `username` finns
-* `username` är en string
-* `text` finns
-* `text` är en string
-* tomma meddelanden inte kan publiceras
-
-Du får själv välja hur valideringen implementeras.
-
----
-
-# Felhantering
-
-API:t ska använda relevanta HTTP-statuskoder och returnera JSON.
-
-Exempel på statuskoder som kan vara relevanta:
-
-```text
-200 OK
-201 Created
-400 Bad Request
-404 Not Found
-500 Internal Server Error
-```
-
-Exempel:
+**Response `200`**
 
 ```json
 {
-  "message": "Message not found."
+  "success": true,
+  "message": "User logged in successfully!",
+  "token": "eyJhbGciOiJIUzI1NiIs..."
 }
 ```
 
-Frontend-applikationen ska hantera fel på ett lämpligt sätt så att applikationen inte kraschar om ett API-anrop misslyckas.
+The token contains the user's `id` and `username` and expires after 1 hour.
+
+**Errors:** `400` invalid body · `404` User does not exist · `401` wrong password
 
 ---
 
-# Integration
+## Get all messages
 
-Frontend-applikationen ska kopplas till det API som du bygger.
+`GET /api/messages`
 
-Den befintliga exempeldata som finns i startprojektet ska ersättas av data från DynamoDB via ditt API.
+**Response `200`** (newest first)
 
-Det färdiga flödet ska alltså vara:
-
-```text
-Shui React
-     │
-     ▼
-API Gateway
-     │
-     ▼
-Lambda
-     │
-     ▼
-DynamoDB
+```json
+{
+	"success": true,
+	"messages": [
+		{
+			"id": "8d6a5189-6d08-43f6-9686-72acf405ac66",
+			"username": "lisa",
+			"text": "new update about user",
+			"createdAt": "2026-09-28T21:05:14.596Z",
+			"updatedAt": "2026-09-28T21:16:50.254Z"
+		},
+		{
+			"id": "3a5a8452-3020-4fd0-ad3d-90d4c0bedd92",
+			"username": "sara",
+			"text": "correction",
+			"createdAt": "2026-09-28T20:01:32.629Z",
+			"updatedAt": "2026-09-29T18:19:44.421Z"
+		},
+		{
+			"id": "fe292e4a-0e45-4f1d-acde-abaea66032e2",
+			"username": "sara",
+			"text": "finalising project",
+			"createdAt": "2026-09-28T11:56:54.850Z"
+		},
 ```
 
-När användaren exempelvis publicerar ett meddelande ska flödet vara:
+**Query parameters :** `username` – only return messages from this user, e.g. `/api/messages?username=sughra`
 
-```text
-Message Form
-     │
-     ▼
-POST /messages
-     │
-     ▼
-API Gateway
-     │
-     ▼
-Lambda
-     │
-     ▼
-DynamoDB
-     │
-     ▼
-Frontend uppdateras
+
+**Response `200`**
+
+
+```json
+{
+  "success": true,
+  "messages": [
+    {
+      "id": "3a5a8452-3020-4fd0-ad3d-90d4c0bedd92",
+      "username": "sughra",
+      "text": "Hello Shui!",
+      "createdAt": "2026-09-28T14:32:00.000Z"
+    }
+  ]
+}
 ```
 
 ---
 
-# Förvaltning av befintlig kod
+## Get one message
 
-En del av examinationen är att visa att du kan sätta dig in i och vidareutveckla en befintlig kodbas.
+`GET /api/messages/{id}`
 
-Du förväntas därför:
+**Path parameters:** `id` – the message id
 
-* sätta dig in i projektets befintliga struktur
-* förstå hur de befintliga komponenterna används
-* återanvända befintlig kod där det är lämpligt
-* placera ny kod på rimliga platser i projektet
-* undvika att skriva om fungerande delar utan anledning
-* bibehålla en tydlig och konsekvent struktur
+**Response `200`**
 
-Du får skapa nya:
-
-```text
-components
-pages
-services
-hooks
-utils
+```json
+{
+  "success": true,
+  "message": {
+    "id": "3a5a8452-3020-4fd0-ad3d-90d4c0bedd92",
+    "username": "sughra",
+    "text": "Hello Shui!",
+    "createdAt": "2026-09-28T14:32:00.000Z"
+  }
+}
 ```
 
-eller annan struktur när det behövs.
+**Errors:** `404` No message found
 
-Du får även modifiera befintliga komponenter.
+---
 
-Målet är inte att projektet ska förbli oförändrat, utan att du ska **bygga vidare på det istället för att börja om från början**.
+## Create message
+
+`POST /api/messages` · requires token
+
+**Request body**
+
+```json
+{ "text": "Hello shui!" }
+```
+
+The username is taken from the JWT, not from the request body, so a user cannot post as someone else. `id` and `createdAt` are created by the backend.
+
+**Validation:** `text` required string, cannot be empty
+
+**Response `201`**
+
+```json
+{
+	"success": true,
+	"message": {
+		"id": "11a604b4-8bc0-4579-b1b7-bbe5435298a7",
+		"username": "sughra",
+		"text": "Hello shui",
+		"createdAt": "2026-09-30T10:44:02.799Z"
+	}
+}
+```
+
+**Errors:** `400` Message cannot be empty · `401` Unauthorised: invalid token
+
+---
+
+## Update message
+
+`PATCH /api/messages/{id}` · requires token · only the author
+
+**Path parameters:** `id` – the message id
+
+**Request body**
+
+```json
+{ "text": "Updated text" }
+```
+
+**Response `200`**
+
+```json
+{
+	"success": true,
+	"message": {
+		"id": "a6bf296b-50ba-42bb-a95a-1c8956555bb9",
+		"username": "sughra",
+		"text": "uppdate check",
+		"createdAt": "2026-09-30T10:01:36.521Z",
+		"updatedAt": "2026-09-30T10:41:02.367Z"
+	}
+}
+```
+
+**Errors:** `400` Message cannot be empty · `401` missing or invalid token · `403` You can only change your own messages · `404` Message not found
+
+---
+
+## Delete message
+
+`DELETE /api/messages/{id}` · requires token · only the author
+
+**Path parameters:** `id` – the message id
+
+**Response `200`**
+
+```json
+{
+	"success": true,
+	"message": "Message deleted successfully!"
+}
+```
+
+**Errors:** `401` Unauthorized: invalid token · `403` You can only change your own messages · `404` Message not found
+
+---
+
+# DynamoDB design
+
+I use **single-table design** with one table, `shuiTable`, and two Global Secondary Indexes. The keys are designed from the access patterns: every key exists because the application needs to ask that question.
+
+## Access patterns
+
+| # | Access pattern | Solved with |
+|---|---|---|
+| AP1 | Create a message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP2 | Get all messages (newest first) | `GSI1PK = MESSAGES`, `GSI1SK` (createdAt) |
+| AP3 | Get all messages from a specific user | `GSI2PK = USER#<username>`, `GSI2SK, "MESSAGE#` |
+| AP4 | Get a specific message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP5 | Update a message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP6 | Delete a message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP7 | Register a user (unique username) | `PK = USER#<username>`, `SK = PROFILE`|
+| AP8 | Get a user by username (login) |`PK = USER#<username>`, `SK = PROFILE` |
+| AP9 | Get all messages from the logged-in user | Same as AP3, with the username taken from the JWT |
+
+## Key design
+
+**Main table**
+
+| Entity | PK | SK |
+|---|---|---|
+| Message | `MESSAGE#<id>` | `METADATA` |
+| User | `USER#<username>` | `PROFILE` |
+
+**GSI1 – all messages**
+
+| Entity | GSI1PK | GSI1SK |
+|---|---|---|
+| Message | `MESSAGES` | `<createdAt>` |
+
+**GSI2 – messages per user**
+
+| Entity | GSI2PK | GSI2SK |
+|---|---|---|
+| Message | `USER#<username>` | `MESSAGE#<createdAt>` |
+
+## Why this design
+
+- **One message = one item.** `PK = MESSAGE#<id>` gives direct access to a single message for get, update and delete (AP4–AP6) without searching.
+- **GSI1** puts all messages in the same partition (`MESSAGES`) with `createdAt` as sort key, so all messages can be fetched with one query, sorted by date (AP2).
+- **GSI2** groups messages by author (`USER#<username>`), so one user's messages can be fetched with one query instead of scanning the whole table (AP3).
+- **Users and messages share the table.** The prefixes `USER#` and `MESSAGE#` keep the entity types apart. Using the username as the user's key makes login a direct lookup, and `attribute_not_exists(PK)` guarantees unique usernames.
+- Users are not written to GSI1 or GSI2, so the indexes only contain messages.
+
+---
+
+# Authentication and authorization
+
+- **Registration:** passwords are hashed with bcrypt.
+- **Login:** a JWT with the user's `id` and `username` is returned.
+- **Authentication:** the `authenticateUser` middleware verifies the JWT on create, update and delete, and puts the user in `event.user`.
+- **Authorization:** the `authorizeUser` middleware fetches the message and returns `403` if it does not belong to the logged-in user. The frontend only shows Edit/Delete on own messages, but the backend always checks.
+- **Everyone** can read messages without logging in.
 
 ---
 
 # Frontend
 
-Frontend ska fortsätta använda React.
+Built on the existing Shui starter project. The existing components (`MessageFlow`, `Message`, `MessageForm`, `LoginForm`, `RegisterForm`, `Header`, `Navigation`) are reused and connected to the API.
 
-Den färdiga applikationen ska:
-
-* använda den befintliga Shui-applikationen som grund
-* kommunicera med ditt serverless API
-* visa data från DynamoDB
-* uppdatera gränssnittet när data förändras
-* ha en konsekvent och användbar layout
-* fungera utan uppenbara fel
-
-Du får göra egna designförändringar och förbättringar.
-
-Det är däremot inte ett krav att designa om Shui.
+- The example data is replaced with data from DynamoDB via the API.
+- `MessageForm` is reused for both creating and editing messages.
+- After login, the navigation shows the username and a logout button.
+- Edit and delete icons are only shown on USER own messages.
+- usernames are clickable and link to `/users/:username`, which shows all messages from that user.
 
 ---
 
-# Deployment
+# Run the project locally
 
-Den färdiga frontend-applikationen ska byggas:
+## Requirements
+
+- Node.js
+- AWS account with configured AWS CLI credentials
+- Serverless Framework (`npm install -g serverless`)
+
+## Backend
+
+1. Go to the backend folder and install packages:
+
+   ```bash
+   cd shui-backend
+   npm install
+   ```
+
+2. Create `shui-backend/config.yml` (not included in the repo because it contains secrets):
+
+   ```yaml
+   role: arn:aws:iam::<account-id>:role/<lambda-role-with-dynamodb-access>
+   jwtSecret: <a-long-random-string>
+   ```
+
+3. Deploy to AWS:
+
+   ```bash
+   serverless deploy
+   ```
+
+   The API base URL is shown under **endpoints** in the output.
+
+## Frontend
+
+1. In frontend folder install packages:
+
+   ```bash
+   cd shui-frontend
+   npm install
+   ```
+
+2. To use backend, set API base URL in `src/api/auth.js` and `src/api/messages.js`.
+
+3. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Open the local address shown in the terminal, usually http://localhost:5173.
+
+## Deploy the frontend
+
+Every push to `main` builds the frontend and uploads it to S3 through GitHub Actions (`.github/workflows/deploy.yml`). To deploy manually:
 
 ```bash
+cd shui-frontend
 npm run build
+aws s3 sync dist/ s3://project-shui-sughra --delete
 ```
-
-och driftsättas som en statisk webbplats i en **S3-bucket på AWS**.
-
-Applikationen ska vara nåbar via en publik URL.
-
-Det färdiga systemet ska alltså bestå av:
-
-```text
-                 AWS
-
-          ┌──────────────┐
-          │      S3      │
-          │ React/Shui   │
-          └──────┬───────┘
-                 │
-                 ▼
-          ┌──────────────┐
-          │ API Gateway  │
-          └──────┬───────┘
-                 │
-                 ▼
-          ┌──────────────┐
-          │    Lambda    │
-          └──────┬───────┘
-                 │
-                 ▼
-          ┌──────────────┐
-          │   DynamoDB   │
-          └──────────────┘
-```
-
-Kontrollera att den **deployade frontend-applikationen** kan kommunicera med ditt API.
-
-Tänk på att du kan behöva konfigurera CORS.
-
----
-
-# Dokumentation
-
-Projektets README ska innehålla:
-
-* en kort beskrivning av projektet
-* länk till den deployade Shui-applikationen
-* API:ts base URL
-* dokumentation över dina endpoints
-* DynamoDB-design och Access Patterns
-* instruktioner för hur projektet startas lokalt
-
-API-dokumentationen ska innehålla:
-
-```text
-HTTP-metod
-Endpoint
-Request body
-Path/query parameters
-Response
-```
-
-Det ska vara möjligt att förstå hur ditt API används genom att läsa README.
-
----
-
-# Krav för Godkänt
-
-För att få **Godkänt** ska:
-
-* den befintliga Shui-applikationen användas som grund
-* befintlig kod vidareutvecklas på ett strukturerat sätt
-* samtliga funktionella krav vara implementerade
-* meddelanden kunna hämtas
-* meddelanden från en specifik användare kunna hämtas via API:t
-* nya meddelanden kunna publiceras
-* meddelanden kunna redigeras
-* meddelanden kunna tas bort
-* DynamoDB användas för persistent lagring
-* databasdesignen utgå från applikationens Access Patterns
-* DynamoDB-designen dokumenteras i README
-* Serverless Framework användas
-* API Gateway användas
-* AWS Lambda användas
-* inkommande data valideras
-* relevanta fel hanteras
-* frontend kommunicera med det egna API:t
-* frontend vara deployad i en S3-bucket
-* den deployade applikationen vara nåbar via URL
-* applikationen ha ett enhetligt och användbart gränssnitt
-* README innehålla efterfrågad dokumentation
-
----
-
-# Krav för Väl Godkänt
-
-För **Väl Godkänt** ska samtliga krav för Godkänt vara uppfyllda.
-
-Dessutom ska följande funktionalitet implementeras:
-
----
-
-## Meddelanden per användare i frontend
-
-API:t kan redan hämta meddelanden från en specifik användare.
-
-På VG-nivå ska denna funktionalitet även integreras i frontend-applikationen.
-
-Exempelvis kan användarnamnet:
-
-```text
-jeppan6y
-```
-
-vara klickbart.
-
-Användaren kan då navigera till exempelvis:
-
-```text
-/users/jeppan6y
-```
-
-och se samtliga meddelanden som publicerats av den användaren.
-
-Du väljer själv hur frontendens routing och struktur implementeras.
-
----
-
-## Registrering och inloggning
-
-Det ska gå att:
-
-```text
-registrera användare
-logga in
-```
-
-En användare ska exempelvis kunna innehålla:
-
-```js
-{
-  id,
-  username,
-  email,
-  password
-}
-```
-
-Lösenordet ska lagras **hashat** och får aldrig sparas i klartext.
-
-Vid lyckad inloggning ska användaren få en:
-
-```text
-JWT
-```
-
-JWT:n används därefter för att identifiera den inloggade användaren.
-
----
-
-# Authorization
-
-När authentication implementerats ska funktionaliteten för meddelanden förändras.
-
-Alla ska fortfarande kunna:
-
-```text
-läsa meddelanden
-```
-
-Men endast en inloggad användare ska kunna:
-
-```text
-publicera meddelanden
-redigera sina egna meddelanden
-ta bort sina egna meddelanden
-```
-
-När ett meddelande skapas ska backend koppla meddelandet till den inloggade användaren.
-
-Klienten ska alltså inte själv kunna bestämma vilken användare ett meddelande tillhör genom att manipulera request body.
-
-En användare får **inte** kunna redigera eller ta bort någon annans meddelande.
-
-Frontend-applikationen ska anpassas efter detta.
-
-Exempelvis bör knappar för:
-
-```text
-Edit
-Delete
-```
-
-endast visas där de är relevanta.
-
-Backend ska dock alltid kontrollera behörigheten.
-
-Det räcker alltså **inte** att endast gömma knappar i frontend.
-
----
-
-# Utöka din DynamoDB-design
-
-När du implementerar användare får din DynamoDB-tabell ytterligare en typ av data.
-
-Fundera på hur:
-
-```text
-USER
-MESSAGE
-```
-
-ska kunna existera i samma databasdesign.
-
-Exempel på nya Access Patterns kan vara:
-
-```text
-Hämta användare via email
-
-Hämta användare via ID
-
-Hämta alla meddelanden från den inloggade användaren
-```
-
-Uppdatera DynamoDB-dokumentationen i README så att den även beskriver de delar du lagt till för VG.
-
----
-
-# Inlämning
-
-Inlämning sker individuellt på **Moodle**.
-
-Du lämnar in:
-
-```text
-Länk till GitHub-repository
-```
-
-Ditt repository ska innehålla:
-
-```text
-Frontend
-Backend
-README.md
-```
-
-README ska tydligt innehålla:
-
-```text
-Länk till deployad Shui-applikation
-API Base URL
-API-dokumentation
-Databasdokumentation
-```
-
-Den deployade applikationen och API:t ska vara tillgängliga under rättningsperioden.
-
-Kontrollera därför innan du lämnar in att:
-
-* frontend-URL:en fungerar
-* API:t fortfarande är deployat
-* frontend kan kommunicera med API:t
-* funktionaliteten fungerar från den deployade versionen och inte enbart lokalt
-
----
-
-## Munta
-
-Fredagen den **2/10** genomförs en individuell muntlig examination (**munta**).
-
-Varje studerande har **15 minuter**. Muntan inleds med:
-
-```text
-3 minuter – Demonstration av den färdiga applikationen
-3 minuter – Demonstration av koden
-```
-
-Under de första tre minuterna visar du kort den färdiga applikationen och dess viktigaste funktioner.
-
-Därefter har du tre minuter där du visar och förklarar delar av din kod. Fokusera på lösningar och delar av koden som du tycker är särskilt viktiga för applikationen.
-
-Resterande tid kommer läraren att ställa frågor om din kod och de lösningar du har valt. Syftet är att säkerställa att du **förstår din egen kod, kan förklara hur den fungerar och kan motivera de lösningar du har valt**.
-
-Förbered dig därför väl inför muntan. Du ska kunna resonera kring både frontend, backend och databas samt förklara hur de olika delarna av applikationen fungerar tillsammans.
-
-**Tider för muntan skickas ut i början av vecka 40.**
-
-När det är din tur ska du vara **redo att börja direkt**. Ha applikationen, koden och allt annat du behöver öppet och förberett innan din tid börjar.
-
----
-
-## Deadline
-
-**1/10 kl. 23:59**
