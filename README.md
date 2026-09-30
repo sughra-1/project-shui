@@ -41,7 +41,7 @@ Protected endpoints need the JWT from login in the header:
 Authorization: Bearer <token>
 ```
 
-## Overview
+## Endpoints
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
