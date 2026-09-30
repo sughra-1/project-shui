@@ -8,6 +8,7 @@ The project builds on the existing Shui React starter project. I added a serverl
 
 | | URL |
 |---|---|
+| **Deployed app (cloud front)** | https://d7xrz8skhld5a.cloudfront.net/ |
 | **Deployed app (S3)** | http://project-shui-sughra.s3-website.eu-north-1.amazonaws.com |
 | **API base URL** | https://8ez7w55yl6.execute-api.eu-north-1.amazonaws.com|
 
@@ -22,8 +23,11 @@ The project builds on the existing Shui React starter project. I added a serverl
 ## Architecture
 
 ```text
-React (S3)  →  API Gateway  →  Lambda  →  DynamoDB
+Browser  →  CloudFront (HTTPS)  →  S3 (React build)
+                  │
+React app  →  API Gateway  →  Lambda  →  DynamoDB
 ```
+
 
 ---
 
@@ -404,3 +408,17 @@ cd shui-frontend
 npm run build
 aws s3 sync dist/ s3://project-shui-sughra --delete
 ```
+
+## CloudFront
+
+The S3 static website endpoint only supports HTTP. To serve the app over HTTPS, a CloudFront distribution is placed in front of the S3 bucket.
+
+| Setting | Value |
+|---|---|
+| Origin | S3 website endpoint `project-shui-sughra.s3-website.eu-north-1.amazonaws.com` |
+| Viewer protocol policy | Redirect HTTP to HTTPS |
+| Default root object | `index.html` |
+
+
+```bash
+aws cloudfront create-invalidation --distribution-id EIUZ6V0HTAOAF --paths "/*"
