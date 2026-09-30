@@ -65,7 +65,7 @@ Authorization: Bearer <token>
 ```json
 {
   "username": "sughra",
-  "email": "sughra@mail.com",
+  "email": "sughra@test.com",
   "password": "123456"
 }
 ```
@@ -93,7 +93,7 @@ The password is hashed with bcrypt before it is saved and is never stored in pla
 ```json
 {
   "username": "sughra",
-  "password": "secret123"
+  "password": "123456"
 }
 ```
 
