@@ -25,27 +25,6 @@ The project builds on the existing Shui React starter project. I added a serverl
 React (S3)  →  API Gateway  →  Lambda  →  DynamoDB
 ```
 
-## Project structure
-
-```text
-exam-shui/
-├── shui-backend/
-│   ├── functions/        Lambda handlers (auth, messages)
-│   ├── services/         DynamoDB logic (db.mjs, messages.mjs, users.mjs)
-│   ├── middlewares/      authentication, authorization, validation, error handling
-│   ├── models/           Zod schemas
-│   ├── responses/        shared response helper
-│   ├── utils/            JWT and password helpers
-│   └── serverless.yml    AWS infrastructure (Lambda, API Gateway, DynamoDB)
-├── shui-frontend/
-│   └── src/
-│       ├── api/          fetch functions for the API (auth.js, messages.js)
-│       ├── components/   existing components, connected to the API
-│       ├── pages/        existing pages + new UserPage
-│       └── router/       routes
-└── .github/workflows/deploy.yml   automatic frontend deployment to S3
-```
-
 ---
 
 # API documentation
@@ -72,8 +51,8 @@ Authorization: Bearer <token>
 | `GET` | `/api/messages?username={username}` | – | Get all messages from one user |
 | `GET` | `/api/messages/{id}` | – | Get one message |
 | `POST` | `/api/messages` | logged In (JWT) |Create a message |
-| `PATCH` | `/api/messages/{id}` |  logged In + author of the message | Update a message |
-| `DELETE` | `/api/messages/{id}` |  logged In + author of the message | Delete a message |
+| `PATCH` | `/api/messages/{id}` |  logged In + own message | Update a message |
+| `DELETE` | `/api/messages/{id}` |  logged In + own message | Delete a message |
 
 ---
 
@@ -87,7 +66,7 @@ Authorization: Bearer <token>
 {
   "username": "sughra",
   "email": "sughra@mail.com",
-  "password": "secret123"
+  "password": "123456"
 }
 ```
 
@@ -138,9 +117,39 @@ The token contains the user's `id` and `username` and expires after 1 hour.
 
 `GET /api/messages`
 
-**Query parameters (optional):** `username` – only return messages from this user, e.g. `/api/messages?username=sughra`
-
 **Response `200`** (newest first)
+
+```json
+{
+	"success": true,
+	"messages": [
+		{
+			"id": "8d6a5189-6d08-43f6-9686-72acf405ac66",
+			"username": "lisa",
+			"text": "new update about user",
+			"createdAt": "2026-09-28T21:05:14.596Z",
+			"updatedAt": "2026-09-28T21:16:50.254Z"
+		},
+		{
+			"id": "3a5a8452-3020-4fd0-ad3d-90d4c0bedd92",
+			"username": "sara",
+			"text": "correction",
+			"createdAt": "2026-09-28T20:01:32.629Z",
+			"updatedAt": "2026-09-29T18:19:44.421Z"
+		},
+		{
+			"id": "fe292e4a-0e45-4f1d-acde-abaea66032e2",
+			"username": "sara",
+			"text": "finalising project",
+			"createdAt": "2026-09-28T11:56:54.850Z"
+		},
+```
+
+**Query parameters :** `username` – only return messages from this user, e.g. `/api/messages?username=sughra`
+
+
+**Response `200`**
+
 
 ```json
 {
@@ -189,7 +198,7 @@ The token contains the user's `id` and `username` and expires after 1 hour.
 **Request body**
 
 ```json
-{ "text": "Hello Shui!" }
+{ "text": "Hello shui!" }
 ```
 
 The username is taken from the JWT, not from the request body, so a user cannot post as someone else. `id` and `createdAt` are created by the backend.
@@ -200,17 +209,17 @@ The username is taken from the JWT, not from the request body, so a user cannot 
 
 ```json
 {
-  "success": true,
-  "message": {
-    "id": "3a5a8452-3020-4fd0-ad3d-90d4c0bedd92",
-    "username": "sughra",
-    "text": "Hello Shui!",
-    "createdAt": "2026-09-28T14:32:00.000Z"
-  }
+	"success": true,
+	"message": {
+		"id": "11a604b4-8bc0-4579-b1b7-bbe5435298a7",
+		"username": "sughra",
+		"text": "Hello shui",
+		"createdAt": "2026-09-30T10:44:02.799Z"
+	}
 }
 ```
 
-**Errors:** `400` empty or invalid text · `401` missing or invalid token
+**Errors:** `400` Message cannot be empty · `401` Unauthorised: invalid token
 
 ---
 
@@ -230,18 +239,18 @@ The username is taken from the JWT, not from the request body, so a user cannot 
 
 ```json
 {
-  "success": true,
-  "message": {
-    "id": "3a5a8452-3020-4fd0-ad3d-90d4c0bedd92",
-    "username": "sughra",
-    "text": "Updated text",
-    "createdAt": "2026-09-28T14:32:00.000Z",
-    "updatedAt": "2026-09-28T15:10:00.000Z"
-  }
+	"success": true,
+	"message": {
+		"id": "a6bf296b-50ba-42bb-a95a-1c8956555bb9",
+		"username": "sughra",
+		"text": "uppdate check",
+		"createdAt": "2026-09-30T10:01:36.521Z",
+		"updatedAt": "2026-09-30T10:41:02.367Z"
+	}
 }
 ```
 
-**Errors:** `400` empty text · `401` missing or invalid token · `403` You can only change your own messages · `404` Message not found
+**Errors:** `400` Message cannot be empty · `401` missing or invalid token · `403` You can only change your own messages · `404` Message not found
 
 ---
 
@@ -254,10 +263,13 @@ The username is taken from the JWT, not from the request body, so a user cannot 
 **Response `200`**
 
 ```json
-{ "success": true, "message": "Message deleted successfully!" }
+{
+	"success": true,
+	"message": "Message deleted successfully!"
+}
 ```
 
-**Errors:** `401` missing or invalid token · `403` You can only change your own messages · `404` Message not found
+**Errors:** `401` Unauthorized: invalid token · `403` You can only change your own messages · `404` Message not found
 
 ---
 
@@ -269,15 +281,15 @@ I use **single-table design** with one table, `shuiTable`, and two Global Second
 
 | # | Access pattern | Solved with |
 |---|---|---|
-| AP1 | Create a message | `PutItem` with `PK = MESSAGE#<id>`, `SK = METADATA` |
-| AP2 | Get all messages (newest first) | `Query` on **GSI1** where `GSI1PK = MESSAGES`, sorted by `GSI1SK` (createdAt) |
-| AP3 | Get all messages from a specific user | `Query` on **GSI2** where `GSI2PK = USER#<username>` and `begins_with(GSI2SK, "MESSAGE#")` |
-| AP4 | Get a specific message | `GetItem` with `PK = MESSAGE#<id>`, `SK = METADATA` |
-| AP5 | Update a message | `UpdateItem` with `PK = MESSAGE#<id>`, `SK = METADATA` |
-| AP6 | Delete a message | `DeleteItem` with `PK = MESSAGE#<id>`, `SK = METADATA` |
-| VG | Register a user (unique username) | `PutItem` with `PK = USER#<username>`, `SK = PROFILE` and `attribute_not_exists(PK)` |
-| VG | Get a user by username (login) | `GetItem` with `PK = USER#<username>`, `SK = PROFILE` |
-| VG | Get all messages from the logged-in user | Same as AP3, with the username taken from the JWT |
+| AP1 | Create a message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP2 | Get all messages (newest first) | `GSI1PK = MESSAGES`, `GSI1SK` (createdAt) |
+| AP3 | Get all messages from a specific user | `GSI2PK = USER#<username>`, `GSI2SK, "MESSAGE#` |
+| AP4 | Get a specific message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP5 | Update a message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP6 | Delete a message | `PK = MESSAGE#<id>`, `SK = METADATA` |
+| AP7 | Register a user (unique username) | `PK = USER#<username>`, `SK = PROFILE`|
+| AP8 | Get a user by username (login) |`PK = USER#<username>`, `SK = PROFILE` |
+| AP9 | Get all messages from the logged-in user | Same as AP3, with the username taken from the JWT |
 
 ## Key design
 
@@ -315,7 +327,7 @@ I use **single-table design** with one table, `shuiTable`, and two Global Second
 - **Registration:** passwords are hashed with bcrypt.
 - **Login:** a JWT with the user's `id` and `username` is returned.
 - **Authentication:** the `authenticateUser` middleware verifies the JWT on create, update and delete, and puts the user in `event.user`.
-- **Authorization:** the `authorizeUser` middleware fetches the message and returns `403` if it does not belong to the logged-in user. The frontend only shows Edit/Delete on your own messages, but the backend always checks.
+- **Authorization:** the `authorizeUser` middleware fetches the message and returns `403` if it does not belong to the logged-in user. The frontend only shows Edit/Delete on own messages, but the backend always checks.
 - **Everyone** can read messages without logging in.
 
 ---
@@ -327,9 +339,8 @@ Built on the existing Shui starter project. The existing components (`MessageFlo
 - The example data is replaced with data from DynamoDB via the API.
 - `MessageForm` is reused for both creating and editing messages.
 - After login, the navigation shows the username and a logout button.
-- Edit and delete icons are only shown on your own messages.
-- **VG:** usernames are clickable and link to `/users/:username`, which shows all messages from that user.
-- Errors from the API are shown to the user, so the app does not crash if a request fails.
+- Edit and delete icons are only shown on USER own messages.
+- usernames are clickable and link to `/users/:username`, which shows all messages from that user.
 
 ---
 
@@ -367,14 +378,14 @@ Built on the existing Shui starter project. The existing components (`MessageFlo
 
 ## Frontend
 
-1. Go to the frontend folder and install packages:
+1. In frontend folder install packages:
 
    ```bash
    cd shui-frontend
    npm install
    ```
 
-2. If you use your own backend, set your API base URL in `src/api/auth.js` and `src/api/messages.js`.
+2. To use backend, set API base URL in `src/api/auth.js` and `src/api/messages.js`.
 
 3. Start the development server:
 
